@@ -1,6 +1,6 @@
 ---
 name: windows-powershell-utf8
-description: 在 Windows PowerShell 5.1 中处理中文文本、Markdown/TXT/JSON 文件或出现乱码时，统一设置 UTF-8 读写与输出编码，避免 Get-Content/Set-Content 默认编码导致的乱码。
+description: 在 Windows PowerShell 5.1 中处理中文文本、Markdown/TXT/JSON/.ps1/.cmd 文件、乱码、双击脚本红字、The string is missing the terminator 或中文输出异常时，统一检查 UTF-8、BOM、cmd 代码页和 Python/PowerShell 输出编码。
 ---
 
 # Windows PowerShell UTF-8 防乱码
@@ -10,6 +10,7 @@ description: 在 Windows PowerShell 5.1 中处理中文文本、Markdown/TXT/JSO
 - 用户提到“乱码”“中文显示异常”“锟斤拷”“璇婃柇”这类文本异常。
 - 在 Windows 上使用 `powershell.exe`（尤其是 PowerShell 5.1）执行文件读写命令。
 - 读取或写入 `*.md`、`*.txt`、`*.json`、`*.csv` 等文本文件，且包含中文。
+- 双击 `.cmd` 启动 `.ps1`，出现红字、中文乱码，或 `The string is missing the terminator: "`。
 - 需要在会话中长期稳定地避免编码问题，而不是一次性临时修复。
 
 ## 核心原则
@@ -27,6 +28,7 @@ $PSVersionTable.PSVersion
 [System.Text.Encoding]::Default.WebName
 ```
 - 若默认编码是 `gb2312`/`gbk` 等本地代码页，则 UTF-8 无 BOM 文件存在高风险乱码。
+- 如果入口是 `.cmd` 双击启动 `powershell.exe`，默认按 Windows PowerShell 5.1 风险处理；即使当前 Codex shell 是 PowerShell 7，也不能据此排除 5.1 解析问题。
 
 ### 2) 会话级修复（每次进入会话先执行）
 ```powershell
@@ -49,6 +51,37 @@ Import-Csv -Path "<path>" -Encoding UTF8
 Export-Csv -Path "<path>" -NoTypeInformation -Encoding UTF8
 ```
 - 在自动化脚本中，优先把 `-Encoding UTF8` 写死，不要依赖会话默认值。
+
+### 3a) `.cmd` 双击启动 `.ps1` 的专门处理
+
+若 `.ps1` 含中文并可能由 `.cmd` 调 `powershell.exe` 运行：
+
+1. `.ps1` 保存为 UTF-8 with BOM。PowerShell 7 的 `Set-Content -Encoding UTF8` 可能写成无 BOM；需要 BOM 时用：
+```powershell
+$content = Get-Content -Path ".\script.ps1" -Encoding UTF8 -Raw
+$encoding = New-Object System.Text.UTF8Encoding($true)
+[System.IO.File]::WriteAllText((Resolve-Path ".\script.ps1"), $content, $encoding)
+```
+2. `.ps1` 开头仍设置输出编码：
+```powershell
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$OutputEncoding = [System.Text.Encoding]::UTF8
+$PSDefaultParameterValues['*:Encoding'] = 'utf8'
+```
+3. `.cmd` 入口先切 UTF-8 代码页，并固定 Python 输出编码：
+```bat
+@echo off
+setlocal
+chcp 65001 >nul
+set "PYTHONIOENCODING=utf-8"
+powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -File "%~dp0script.ps1"
+endlocal
+```
+4. 验证 `.ps1` BOM：
+```powershell
+Format-Hex -Path ".\script.ps1" -Count 4
+```
+开头应为 `EF BB BF`。
 
 ### 4) 验证修复是否生效
 ```powershell
@@ -81,6 +114,10 @@ Copy-Item "<path>" "<path>.bak" -Force
 3. 现象：修复后新会话又复发。  
 判定：会话初始化未固化。  
 处理：在每个会话开头优先执行本技能的“会话级修复”三行命令。
+
+4. 现象：双击 `.cmd` 后 PowerShell 红字，错误包含 `The string is missing the terminator: "`，错误行里的中文变成乱码。
+判定：Windows PowerShell 5.1 很可能把 UTF-8 无 BOM 的 `.ps1` 按 ANSI/GBK 读了，导致中文字符串和引号被解析坏。
+处理：先把 `.ps1` 改为 UTF-8 with BOM，再在 `.cmd` 加 `chcp 65001 >nul` 和 `PYTHONIOENCODING=utf-8`，最后复现入口验证。
 
 ## 输出要求
 
