@@ -1,0 +1,4 @@
+interface:
+  display_name: "Project Wiki"
+  short_description: "Build and maintain lightweight project maps"
+  default_prompt: "Use $project-wiki to build or update this repository project map."
