@@ -17,7 +17,7 @@ Read the nearest project `AGENTS.md` and existing `PROJECT_MAP.md`. Scan `docs/a
 
 When no stop or escalation exists, continue silently: do not emit routing JSON or a workflow catalog. Report only a blocking finding, a material risk escalation, or a user decision.
 
-Keep one registry per writer session with branch, worktree, `allowed_paths`, `forbidden_paths`, status, and last verification. Never revert other changes or stage unrelated paths.
+Keep one registry per writer session with `status`, `target`, `handoff_id`, `parent_handoff_id`, `branch`, `worktree`, `allowed_paths`, `forbidden_paths`, `updated_at`, and `last_verified`. Never revert other changes or stage unrelated paths.
 
 Do not run `scripts/audit_workflow_state.py` by default. Run it only for multiple active registries, a resume lineage conflict, an explicit audit request, or release/final full audit. Exit 2 is incomplete and blocks writes.
 

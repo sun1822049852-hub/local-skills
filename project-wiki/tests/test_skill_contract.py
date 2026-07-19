@@ -115,6 +115,17 @@ class ScenarioContractTests(unittest.TestCase):
             with self.subTest(heading=heading):
                 self.assertIn(heading, self.scenarios)
 
+    def test_update_classifies_added_modified_and_deleted_paths(self):
+        for marker in ["added paths", "modified paths", "deleted paths"]:
+            with self.subTest(marker=marker):
+                self.assertIn(marker, self.skill)
+
+    def test_add_is_root_first_and_splits_only_after_threshold(self):
+        skill = self.skill.lower()
+        self.assertIn("add the topic to the root", skill)
+        self.assertIn("split it only when", skill)
+        self.assertNotIn("add one focused `docs/wiki/NN-topic.md`", self.skill)
+
     def test_split_threshold_is_progressive(self):
         for marker in ["8 KB", "40 lines", "repeatedly", "Do not pre-create"]:
             with self.subTest(marker=marker):

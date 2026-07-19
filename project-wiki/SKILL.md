@@ -11,15 +11,15 @@ Build broad, shallow project orientation before deep source reading. Code, tests
 
 - `$project-wiki init`: inspect the repository and create one root `PROJECT_MAP.md` from [assets/PROJECT_MAP.md](assets/PROJECT_MAP.md).
 - `$project-wiki read [topic]`: read the root map first, then only the named linked topic and directly relevant sources.
-- `$project-wiki update [base-ref]`: compare working/staged changes plus the branch merge-base when available; update or remove only invalidated claims and mark unverifiable claims stale.
-- `$project-wiki add <topic>`: add one focused `docs/wiki/NN-topic.md` from [assets/wiki-topic.md](assets/wiki-topic.md) and link it from the root map.
+- `$project-wiki update [base-ref]`: maintain the map from tracked, staged, and working changes.
+- `$project-wiki add <topic>`: add one source-supported topic, root-first.
 
 ## Mode Behavior
 
 - `init`: inspect tracked source, manifests, tests, and existing docs. In an empty or evidence-poor repository, create only the supported skeleton and list gaps; never invent modules, commands, or flows.
 - `read`: use an existing root map as the first orientation source. Open only the requested topic and directly relevant current sources; report when the map is absent or stale.
-- `update`: record dirty state, validate `base-ref`, and compare tracked, staged, and working changes. If the ref is unavailable, use a proven merge-base or mark the comparison gap. If a changed path cannot be mapped, record it as an explicit gap instead of guessing or broadly rewriting the map.
-- `add`: keep the topic in the root unless the expansion threshold is met. Use the next available numeric prefix without renaming unrelated pages.
+- `update`: record dirty state and validate `base-ref`; use a proven merge-base or record the comparison gap. For added paths, add source-supported claims; for modified paths, recheck affected claims; for deleted paths, remove claims only after verified deletion. Mark unverifiable claims stale. If a changed path cannot be mapped, record an explicit gap; never guess or broadly rewrite.
+- `add`: add the topic to the root first. Split it only when the root would exceed 8 KB, or the topic exceeds 40 lines and is read repeatedly. Use the next `docs/wiki/NN-topic.md` from [assets/wiki-topic.md](assets/wiki-topic.md), link it from the root, and preserve unrelated pages.
 
 ## Evidence Rules
 
@@ -31,7 +31,7 @@ An accepted architecture baseline may seed the map, but the baseline/ADR explain
 
 ## Progressive Expansion
 
-Start with one map. Split a topic only when the root would exceed 8 KB, or the topic exceeds 40 lines and is read repeatedly. Do not pre-create topic files. Delete obsolete claims when source deletion is verified; do not accumulate permanent removed entries.
+Start with one map. Do not pre-create topic files or accumulate permanent removed entries.
 
 Create a nested module `AGENTS.md` only for local hard constraints that differ from the parent. Keep it 5-10 lines: responsibility, public entry, owned state, allowed/forbidden dependencies, verification, and local traps. Ordinary module descriptions stay in the map.
 

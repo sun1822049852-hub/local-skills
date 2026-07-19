@@ -12,9 +12,12 @@ Write confirmed facts to `docs/agent/handoffs/<handoff_id>.md`; never overwrite 
 handoff_id: <id>
 parent_handoff_id: <id or null>
 status: in_progress
+created_at: <ISO-8601>
+updated_at: <ISO-8601>
+project_root: <path>
 worktree: <path>
 branch: <branch>
-updated_at: <ISO-8601>
+task: <goal>
 ---
 Goal: <goal>
 Done: <verified progress>

@@ -1,3 +1,4 @@
+import ast
 import re
 import unittest
 from pathlib import Path
@@ -26,6 +27,7 @@ SAVE_HANDOFF = LOCAL_SKILLS / "save-status-handoff" / "SKILL.md"
 RESUME_HANDOFF = LOCAL_SKILLS / "resume-from-handoff" / "SKILL.md"
 HANDOFF_REFERENCE = LOCAL_SKILLS / "save-status-handoff" / "references" / "handoff-schema.md"
 PROJECT_WIKI = LOCAL_SKILLS / "project-wiki"
+AUDIT_SCRIPT = LOCAL_SKILLS / "coding-session-start-gate" / "scripts" / "audit_workflow_state.py"
 
 
 def read(path: Path, encoding: str = "utf-8") -> str:
@@ -89,6 +91,22 @@ class StartGateTests(unittest.TestCase):
                 self.assertIn(marker, text)
         self.assertRegex(text, r"(?i)do not run|不运行")
 
+    def test_registry_fields_match_audit_required_contract(self):
+        start = read(START_GATE)
+        tree = ast.parse(read(AUDIT_SCRIPT))
+        required = None
+        for node in tree.body:
+            if isinstance(node, ast.Assign) and any(
+                isinstance(target, ast.Name) and target.id == "REGISTRY_REQUIRED"
+                for target in node.targets
+            ):
+                required = ast.literal_eval(node.value)
+                break
+        self.assertIsNotNone(required)
+        for field in sorted(required):
+            with self.subTest(field=field):
+                self.assertIn(f"`{field}`", start)
+
 
 class HandoffTests(unittest.TestCase):
     def test_common_handoff_skills_are_compact(self):
@@ -112,6 +130,12 @@ class HandoffTests(unittest.TestCase):
         for marker in ["parent_handoff_id", "initial_marker", "partial_emergency", "continuation_started"]:
             with self.subTest(marker=marker):
                 self.assertIn(marker, reference)
+
+    def test_default_handoff_includes_required_metadata(self):
+        text = read(SAVE_HANDOFF)
+        for marker in ["created_at:", "project_root:", "task:"]:
+            with self.subTest(marker=marker):
+                self.assertIn(marker, text)
 
 
 class ProjectWikiTests(unittest.TestCase):
@@ -159,6 +183,68 @@ class ProjectWikiTests(unittest.TestCase):
         self.assertIn("5-10 lines", skill)
         self.assertRegex(skill, r"(?i)local hard constraints|局部硬约束")
 
+    def test_update_and_add_have_unambiguous_write_targets(self):
+        skill = read(PROJECT_WIKI / "SKILL.md")
+        for marker in ["added paths", "modified paths", "deleted paths"]:
+            with self.subTest(marker=marker):
+                self.assertIn(marker, skill)
+        self.assertIn("add the topic to the root", skill.lower())
+        self.assertIn("split it only when", skill.lower())
+
+
+class MirrorParityTests(unittest.TestCase):
+    def test_owned_canonical_and_live_assets_match(self):
+        canonical = Path.home() / "codex-working-rules"
+        if not canonical.is_dir():
+            self.skipTest("default canonical rules repository is absent")
+        if IS_REPOSITORY_LAYOUT and REPO_ROOT.resolve() != canonical.resolve():
+            self.skipTest("non-default repository checkout does not own live mirrors")
+
+        home = Path.home()
+        manifest = [
+            (canonical / "AGENTS.md", home / ".codex" / "AGENTS.md"),
+            (canonical / "working-principles.md", home / ".codex" / "working-principles.md"),
+            (canonical / "workflow-manual.md", home / "Desktop" / "Codex 工作流说明书.md"),
+            *[
+                (
+                    canonical / "skills-local" / relative,
+                    home / ".agents" / "skills" / "local" / relative,
+                )
+                for relative in [
+                    Path("coding-session-start-gate/SKILL.md"),
+                    Path("coding-session-start-gate/tests/test_skill_contract.py"),
+                    Path("coding-session-start-gate/tests/test_knowledge_first_contract.py"),
+                    Path("resume-from-handoff/SKILL.md"),
+                    Path("save-status-handoff/SKILL.md"),
+                    Path("save-status-handoff/references/handoff-schema.md"),
+                    Path("project-wiki/SKILL.md"),
+                    Path("project-wiki/agents/openai.yaml"),
+                    Path("project-wiki/assets/PROJECT_MAP.md"),
+                    Path("project-wiki/assets/wiki-topic.md"),
+                    Path("project-wiki/tests/scenarios.md"),
+                    Path("project-wiki/tests/test_skill_contract.py"),
+                    Path("project-wiki/tests/fixtures/PROJECT_MAP.md"),
+                ]
+            ],
+            *[
+                (
+                    canonical / "skills" / "verified-operation-map" / relative,
+                    home / ".codex" / "skills" / "verified-operation-map" / relative,
+                )
+                for relative in [
+                    Path("SKILL.md"),
+                    Path("agents/openai.yaml"),
+                    Path("tests/test_skill_contract.py"),
+                ]
+            ],
+        ]
+
+        for source, live in manifest:
+            with self.subTest(source=source, live=live):
+                self.assertTrue(source.is_file(), f"missing canonical asset: {source}")
+                self.assertTrue(live.is_file(), f"missing live asset: {live}")
+                self.assertEqual(source.read_bytes(), live.read_bytes())
+
 
 class MapLayeringTests(unittest.TestCase):
     def test_general_project_map_precedes_high_risk_vom(self):
@@ -174,6 +260,21 @@ class MapLayeringTests(unittest.TestCase):
         self.assertRegex(vom, r"(?i)not.*general project|不是.*通用项目")
         self.assertNotIn("A broad VOM umbrella", principles)
         self.assertIn("已满足高风险触发后", manual)
+
+    def test_maturity_radar_names_all_changed_workflow_assets(self):
+        principles = read(PRINCIPLES, "utf-8-sig")
+        radar = principles.split("#### Rule Change Maturity Radar", 1)[1].split(
+            "#### External Constraint Baseline", 1
+        )[0]
+        for marker in [
+            "project-wiki",
+            "coding-session-start-gate",
+            "save-status-handoff",
+            "resume-from-handoff",
+            "verified-operation-map",
+        ]:
+            with self.subTest(marker=marker):
+                self.assertIn(marker, radar)
 
 
 if __name__ == "__main__":

@@ -16,13 +16,17 @@
 
 A changed path with no defensible map relationship becomes an explicit verification gap. It is not assigned to a guessed module or used to trigger a broad rewrite.
 
+## Added Modified And Deleted Paths
+
+`update` adds only source-supported claims for new paths, rechecks only affected claims for modified paths, and removes claims only after source deletion is verified. Unverifiable claims become stale.
+
 ## Stale Or Missing Base Ref
 
 `update` validates the requested base. It uses a proven merge-base when available; otherwise it records the comparison gap and does not claim complete coverage.
 
 ## Topic Split
 
-One root file remains the default. A topic is split only when the root would exceed 8 KB, or the topic exceeds 40 lines and is repeatedly read. Initialization never creates a fixed page set.
+One root file remains the default. `add` writes to the root first. A topic is split only when the root would exceed 8 KB, or the topic exceeds 40 lines and is repeatedly read. Initialization never creates a fixed page set.
 
 ## Sensitive Evidence
 
